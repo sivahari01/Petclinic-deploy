@@ -1,0 +1,94 @@
+##THREAD DUMP : Take thread dumps for 5 minutes
+
+for i in {1..30}; do
+  docker exec petclinic-app jcmd 7 Thread.print > threaddump_$(date +%s).txt
+  echo "Captured thread dump $i"
+  sleep 10
+done
+
+
+#Quick thread state count (during load)
+
+docker exec petclinic-app jcmd 7 Thread.print | grep "java.lang.Thread.State" | sort | uniq -c
+
+
+
+#Check thread count
+
+docker exec petclinic-app jcmd 7 Thread.print | grep "^\"" | wc -l
+
+
+#Heap
+
+for i in {1..5}; do
+  docker exec petclinic-app jcmd 7 GC.heap_dump /tmp/heap_$(date +%s).hprof
+  echo "Captured heap dump $i"
+  sleep 60
+done
+
+#Verify Heap
+docker exec petclinic-app sh -c 'ls -lh /tmp/*.hprof'
+
+docker cp petclinic-app:/tmp .
+
+---------------------------------------------------------
+
+✅ JVM process details
+docker exec -it petclinic-app ps -ef
+
+✅ JVM flags (heap, GC, etc.)
+docker exec -it petclinic-app jcmd 7 VM.flags
+
+✅ JVM uptime & arguments
+docker exec -it petclinic-app jcmd 7 VM.command_line
+
+✅ Heap summary (lightweight, safe)
+docker exec -it petclinic-app jcmd 7 GC.heap_info
+
+✅ GC statistics (LIVE – every 1 second)
+docker exec -it petclinic-app jstat -gc 7 1000
+
+
+(Stop with Ctrl+C)
+
+✅ Native memory (off-heap, metaspace, threads)
+docker exec -it petclinic-app jcmd 7 VM.native_memory summary
+
+✅ Container-level CPU & memory
+docker stats petclinic-app
+
+🧠 WHEN TO USE WHAT (EXAM + REAL LIFE)
+Problem	Command
+High CPU	Thread dumps (5 mins)
+Requests stuck	Thread dumps
+Memory leak	Heap dump
+Old Gen growing	Heap dump
+GC thrashing	Heap + thread dumps
+OOM	Automatic heap dump
+🚨 IMPORTANT WARNINGS (REAL WORLD)
+
+❌ Don’t take heap dumps every 10 sec
+❌ Don’t analyze a single thread dump
+❌ Don’t restart JVM before copying dumps
+❌ Don’t ignore GC context when reading dumps
+
+✅ GOLD STANDARD WORKFLOW (SAVE THIS)
+1. Start load
+2. Take thread dumps for 5 mins
+3. Take 2–5 heap dumps
+4. Capture GC stats (jstat)
+5. Correlate with response time
+
+
+This is exactly how senior performance engineers work.
+
+🎯 NEXT STEP (RECOMMENDED)
+
+Choose one:
+1️⃣ Analyze thread dumps and find bottleneck
+2️⃣ Analyze heap dump in Eclipse MAT
+3️⃣ Force JVM failure (128 MB heap) and capture dumps
+4️⃣ Correlate JMeter latency with dumps
+
+Tell me the number — we’ll go deeper 💪
+
